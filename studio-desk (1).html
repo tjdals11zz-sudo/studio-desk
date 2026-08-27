@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>우모행 작업실</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#14161C;color:#E8EAF0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
+  button{cursor:pointer;background:none;border:none;color:inherit;font-family:inherit}
+  input{font-family:inherit;outline:none}
+  input::placeholder{color:#5A6178}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-track{background:#14161C}
+  ::-webkit-scrollbar-thumb{background:#2E3444;border-radius:2px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const KEY = "timebox-v4";
+const SWITCH_DATE = "2026-10-01";
+
+const C = {
+  bg:"#14161C",panel:"#1B1F29",panel2:"#232937",line:"#2E3444",
+  text:"#E8EAF0",dim:"#8A93A8",faint:"#5A6178",
+  amber:"#F0B429",coral:"#E1616F",mint:"#58C1B3",violet:"#8B7BD8",
+};
+
+const TRACKS = {oju:C.amber,yt:C.coral,ig:C.mint,base:C.violet,off:C.faint};
+const TRACK_LABEL = {oju:"외주",yt:"유튜브",ig:"인스타",base:"기반"};
+const TRACK_ORDER = ["oju","yt","ig","base"];
+
+const TEMPLATES = {
+  prep:{
+    weekday:{start:19*60,blocks:[[90,"포트폴리오 작업","oju"],[60,"영상 회차 작업","yt"],[15,"카드 검수 · 예약","ig"],[15,"내일 블록 짜기","base"]]},
+    weekend:{start:10*60,blocks:[[120,"포트폴리오 몰아치기","oju"],[40,"다음 회차 주제 · 대본","yt"],[20,"주간 정리","base"]]},
+  },
+  full:{
+    weekday:{start:9*60,blocks:[[180,"수주 작업 / 포트폴리오","oju"],[60,"점심","off"],[150,"회차 편집","yt"],[45,"영업","oju"],[30,"썸네일 · 업로드","yt"],[20,"카드 검수 · 예약","ig"],[40,"편집 기술 학습","base"],[15,"내일 블록 짜기","base"]]},
+    weekend:{start:10*60,blocks:[[90,"다음 주 주제 · 대본 일괄","yt"],[30,"카드 일괄 예약","ig"],[60,"견적 · 포트폴리오 정비","oju"],[30,"주간 회고","base"]]},
+  },
+};
+
+const G=(label,pj,track,due)=>({id:`${pj}-${due}-${label.slice(0,4)}`,label,pj,track,due,done:false});
+const DEFAULT_GOALS=[
+  G("주제 확정","포폴①","oju","2026-08-28"),G("레퍼런스 3개 구조 메모","포폴①","oju","2026-08-28"),
+  G("Buffer 인증 연결","인스타","ig","2026-08-29"),G("대본 쓰기","포폴①","oju","2026-08-29"),
+  G("지인 섭외 연락 돌리기","포폴④","oju","2026-08-30"),G("스톡 푸티지 수집","포폴①","oju","2026-08-30"),
+  G("AI 나레이션 녹음","포폴①","oju","2026-08-31"),G("컷 편집","포폴①","oju","2026-09-01"),
+  G("잡학 카드 30장 예약","인스타","ig","2026-09-01"),G("자막 + 모션","포폴①","oju","2026-09-02"),
+  G("최종 출력 · 업로드","포폴①","oju","2026-09-03"),G("주제 확정","포폴②","oju","2026-09-04"),
+  G("대본 쓰기","포폴②","oju","2026-09-05"),G("프리미어 템플릿 고정","제작","yt","2026-09-05"),
+  G("스톡 푸티지 수집","포폴②","oju","2026-09-07"),G("AI 나레이션 녹음","포폴②","oju","2026-09-08"),
+  G("컷 편집","포폴②","oju","2026-09-09"),G("자막 + 모션","포폴②","oju","2026-09-10"),
+  G("최종 출력 · 업로드","포폴②","oju","2026-09-11"),G("크몽 · 숨고 · 위시켓 등록","수주","oju","2026-09-13"),
+  G("질문지 작성","포폴④","oju","2026-09-14"),G("단가표 만들기","수주","oju","2026-09-15"),
+  G("카피 2줄 확정","포폴③","oju","2026-09-15"),G("손 · 상반신 컷 촬영","포폴③","oju","2026-09-17"),
+  G("포트폴리오 페이지 (노션)","수주","oju","2026-09-17"),G("촬영","포폴④","oju","2026-09-19"),
+  G("나레이션 · 편집","포폴③","oju","2026-09-20"),G("컬러 · 아웃트로","포폴③","oju","2026-09-22"),
+  G("최종 출력 · 업로드","포폴③","oju","2026-09-23"),G("컷 편집 · 자막","포폴④","oju","2026-09-24"),
+  G("최종 출력 · 업로드","포폴④","oju","2026-09-28"),
+];
+
+const pad=n=>String(n).padStart(2,"0");
+const toKey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fromKey=k=>{const[y,m,d]=k.split("-").map(Number);return new Date(y,m-1,d);};
+const shiftKey=(k,n)=>{const d=fromKey(k);d.setDate(d.getDate()+n);return toKey(d);};
+const diffDays=(a,b)=>Math.round((fromKey(b)-fromKey(a))/86400000);
+const fmtMD=k=>`${Number(k.slice(5,7))}/${Number(k.slice(8,10))}`;
+const hhmm=m=>`${pad(Math.floor(m/60)%24)}:${pad(m%60)}`;
+const dur=m=>m>=60?`${Math.floor(m/60)}시간${m%60?` ${m%60}분`:""}`:` ${m}분`;
+const DAYS=["일","월","화","수","목","금","토"];
+const weekStart=k=>shiftKey(k,-((fromKey(k).getDay()+6)%7));
+const tplFor=k=>{const phase=k>=SWITCH_DATE?"full":"prep";const g=fromKey(k).getDay();return TEMPLATES[phase][g===0||g===6?"weekend":"weekday"];};
+const makeDay=k=>{const t=tplFor(k);return{start:t.start,cap:t.blocks.filter(([,,tr])=>tr!=="off").reduce((s,[m])=>s+m,0),blocks:t.blocks.map(([min,label,track],i)=>({id:`b${i}`,min,label,track,done:false,subs:[]}))};};
+
+// localStorage 대신 사용 (독립 앱)
+const storage={
+  get:key=>{try{const v=localStorage.getItem(key);return v?{value:v}:null;}catch{return null;}},
+  set:(key,value)=>{try{localStorage.setItem(key,value);return true;}catch{return false;}},
+};
+
+// 아이콘 SVG 컴포넌트
+const Icon=({d,size=16,strokeWidth=2})=>(
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    {Array.isArray(d)?d.map((p,i)=><path key={i} d={p}/>):<path d={d}/>}
+  </svg>
+);
+const Check=({size,strokeWidth})=><Icon size={size} strokeWidth={strokeWidth} d="M20 6L9 17l-5-5"/>;
+const Plus=({size,strokeWidth})=><Icon size={size} strokeWidth={strokeWidth} d={["M12 5v14","M5 12h14"]}/>;
+const Minus=({size})=><Icon size={size} d="M5 12h14"/>;
+const Trash2=({size})=><Icon size={size} d={["M3 6h18","M19 6l-1 14H6L5 6","M8 6V4h8v2","M10 11v6","M14 11v6"]}/>;
+const ChevronLeft=({size})=><Icon size={size} d="M15 18l-6-6 6-6"/>;
+const ChevronRight=({size})=><Icon size={size} d="M9 18l6-6-6-6"/>;
+const ChevronDown=({size})=><Icon size={size} d="M6 9l6 6 6-6"/>;
+const Clock=({size})=><Icon size={size} d={["M12 2a10 10 0 110 20A10 10 0 0112 2","M12 6v6l4 2"]}/>;
+const ArrowRight=({size})=><Icon size={size} d={["M5 12h14","M12 5l7 7-7 7"]}/>;
+const Copy=({size})=><Icon size={size} d={["M8 4H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2","M8 4a2 2 0 012-2h4a2 2 0 012 2v0a2 2 0 01-2 2h-4a2 2 0 01-2-2v0z"]}/>;
+const RotateCcw=({size})=><Icon size={size} d={["M3 12a9 9 0 109-9 9 9 0 00-9 9","M3 3v5h5"]}/>;
+
+function App() {
+  const [state, setState] = useState(null);
+  const [status, setStatus] = useState("loading");
+  const [view, setView] = useState("day");
+  const [date, setDate] = useState(() => toKey(new Date()));
+  const [edit, setEdit] = useState(false);
+  const [open, setOpen] = useState({});
+  const [draft, setDraft] = useState({ label: "", min: "30", track: "oju" });
+  const [subDraft, setSubDraft] = useState({});
+  const [goalDraft, setGoalDraft] = useState({});
+  const [undo, setUndo] = useState(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => { setUndo(null); }, [date]);
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(t); }, []);
+
+  useEffect(() => {
+    const r = storage.get(KEY);
+    let loaded = r ? (() => { try { return JSON.parse(r.value); } catch { return null; } })() : null;
+    if (!loaded) loaded = { days: {}, goals: DEFAULT_GOALS };
+    setState(loaded);
+    setStatus("ready");
+  }, []);
+
+  const save = (next) => {
+    setState(next);
+    storage.set(KEY, JSON.stringify(next));
+  };
+
+  const today = toKey(new Date());
+  const dday = diffDays(today, SWITCH_DATE);
+  const day = useMemo(() => (state && state.days[date]) || makeDay(date), [state, date]);
+  const goals = (state && state.goals) || [];
+
+  const laid = useMemo(() => {
+    let t = day.start;
+    return day.blocks.map(b => { const s = t; t += b.min; return { ...b, s, e: t }; });
+  }, [day]);
+
+  const endMin = laid.length ? laid[laid.length - 1].e : day.start;
+  const planMin = day.blocks.filter(b => b.track !== "off").reduce((s, b) => s + b.min, 0);
+  const doneMin = day.blocks.filter(b => b.done && b.track !== "off").reduce((s, b) => s + b.min, 0);
+  const leftMin = day.cap - planMin;
+
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const isToday = date === today;
+  const current = isToday ? laid.find(b => nowMin >= b.s && nowMin < b.e) : null;
+  const nextB = isToday ? laid.find(b => b.s > nowMin) : null;
+  const currentSub = current ? (current.subs || []).find(s => !s.done) : null;
+
+  const setDay = d => save({ ...state, days: { ...state.days, [date]: d } });
+  const setDaySafe = d => { setUndo(day); setDay(d); };
+  const patchBlock = (id, fn) => setDay({ ...day, blocks: day.blocks.map(b => b.id === id ? fn(b) : b) });
+  const delBlock = id => setDaySafe({ ...day, blocks: day.blocks.filter(b => b.id !== id) });
+
+  const toggleSub = (bid, sid) => patchBlock(bid, b => {
+    const subs = b.subs.map(s => s.id === sid ? { ...s, done: !s.done } : s);
+    return { ...b, subs, done: subs.length > 0 && subs.every(s => s.done) };
+  });
+  const toggleBlock = bid => patchBlock(bid, b => {
+    const nd = !b.done;
+    return { ...b, done: nd, subs: (b.subs || []).map(s => ({ ...s, done: nd })) };
+  });
+
+  const addBlock = () => {
+    const label = draft.label.trim();
+    if (!label) return;
+    const min = Math.max(5, parseInt(draft.min, 10) || 30);
+    setDay({ ...day, blocks: [...day.blocks, { id: `b${Date.now()}`, min, label, track: draft.track, done: false, subs: [] }] });
+    setDraft({ ...draft, label: "", min: "30" });
+  };
+
+  const copyYesterday = () => {
+    const y = state.days[shiftKey(date, -1)];
+    if (!y || !y.blocks.length) return;
+    setDaySafe({ start: day.start, cap: y.cap, blocks: y.blocks.map((b, i) => ({ id: `b${Date.now()}${i}`, min: b.min, label: b.label, track: b.track, done: false, subs: (b.subs || []).map((s, j) => ({ id: `s${Date.now()}${j}`, label: s.label, done: false })) })) });
+  };
+
+  const todayGoals = goals.filter(g => !g.done && g.due === date);
+  const late = goals.filter(g => !g.done && g.due < today).sort((a, b) => a.due.localeCompare(b.due));
+  const toggleGoal = id => save({ ...state, goals: goals.map(g => g.id === id ? { ...g, done: !g.done } : g) });
+  const pushGoal = id => save({ ...state, goals: goals.map(g => g.id === id ? { ...g, due: shiftKey(g.due, 1) } : g) });
+  const delGoal = id => save({ ...state, goals: goals.filter(g => g.id !== id) });
+
+  const wStart = weekStart(date);
+  const weekDays = Array.from({ length: 7 }, (_, i) => shiftKey(wStart, i));
+  const yDay = state && state.days[shiftKey(date, -1)];
+  const hasYesterday = yDay && yDay.blocks.length > 0;
+
+  const s = (obj) => Object.entries(obj).map(([k,v])=>`${k}:${v}`).join(';');
+
+  if (status === "loading") return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"monospace",fontSize:14,color:C.faint,background:C.bg}}>불러오는 중…</div>;
+
+  const BtnIcon=({onClick,children,style,label})=>(
+    <button onClick={onClick} aria-label={label} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:C.faint,...style}}>{children}</button>
+  );
+
+  const wrapDay = {maxWidth:560,margin:"0 auto",padding:"24px 16px"};
+  const card = (extra={}) => ({background:C.panel,border:`1px solid ${C.line}`,borderRadius:12,...extra});
+  const card2 = (extra={}) => ({background:C.panel2,border:`1px solid ${C.line}`,borderRadius:12,...extra});
+
+  return (
+    <div style={{minHeight:"100vh",background:C.bg,color:C.text}}>
+      <div style={wrapDay}>
+        {/* 헤더 */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+          <div style={{...card({padding:"20px 20px 20px 20px"}),flex:1,border:`1px solid ${current?TRACKS[current.track]:C.line}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+              <span style={{fontFamily:"monospace",fontSize:12,color:C.faint,display:"flex",alignItems:"center",gap:6}}><Clock size={11}/> {hhmm(nowMin)}</span>
+              {dday>0&&<span style={{fontFamily:"monospace",fontSize:12,color:C.faint}}>전업까지 D-{dday}</span>}
+            </div>
+            {current?(
+              <div>
+                <div style={{fontSize:22,fontWeight:600,lineHeight:1.3}}>{current.label}</div>
+                {currentSub&&<div style={{fontSize:14,marginTop:6,color:C.dim}}>지금 → {currentSub.label}</div>}
+                <div style={{fontFamily:"monospace",fontSize:14,marginTop:8,color:TRACKS[current.track]}}>{hhmm(current.s)} – {hhmm(current.e)} · {current.e-nowMin}분 남음</div>
+              </div>
+            ):nextB?(
+              <div>
+                <div style={{fontSize:22,fontWeight:600,color:C.dim}}>쉬는 시간</div>
+                <div style={{fontFamily:"monospace",fontSize:14,marginTop:8,color:C.faint}}>{hhmm(nextB.s)}부터 · {nextB.label}</div>
+              </div>
+            ):day.blocks.length===0?(
+              <div>
+                <div style={{fontSize:22,fontWeight:600,color:C.dim}}>시간표가 비어 있어</div>
+                <div style={{fontFamily:"monospace",fontSize:14,marginTop:8,color:C.faint}}>블록을 넣거나 기본 시간표를 불러와</div>
+              </div>
+            ):(
+              <div>
+                <div style={{fontSize:22,fontWeight:600,color:C.dim}}>{isToday?"오늘 블록 끝":`${fmtMD(date)} 시간표`}</div>
+                <div style={{fontFamily:"monospace",fontSize:14,marginTop:8,color:C.faint}}>{hhmm(day.start)} – {hhmm(endMin)} · {dur(planMin)}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 탭 */}
+        <div style={{display:"flex",gap:4,padding:4,background:C.panel,borderRadius:10,marginBottom:16}}>
+          {[["day","시간표"],["week","이번 주"]].map(([k,l])=>(
+            <button key={k} onClick={()=>setView(k)} style={{flex:1,padding:"8px 0",borderRadius:8,fontSize:14,fontWeight:500,background:view===k?C.panel2:"transparent",color:view===k?C.text:C.faint,border:"none",cursor:"pointer"}}>{l}</button>
+          ))}
+        </div>
+
+        {view==="day"&&(
+          <div>
+            {/* 날짜 */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <BtnIcon onClick={()=>setDate(shiftKey(date,-1))} label="이전 날"><ChevronLeft size={18}/></BtnIcon>
+              <button onClick={()=>setDate(today)} style={{fontFamily:"monospace",fontSize:14,color:isToday?C.text:C.mint,background:"none",border:"none",cursor:"pointer"}}>{fmtMD(date)} ({DAYS[fromKey(date).getDay()]})</button>
+              <BtnIcon onClick={()=>setDate(shiftKey(date,1))} label="다음 날"><ChevronRight size={18}/></BtnIcon>
+            </div>
+
+            {/* 오늘 설정 */}
+            <div style={{...card({padding:16}),marginBottom:16}}>
+              {[["시작",hhmm(day.start),()=>setDay({...day,start:Math.max(0,day.start-30)}),()=>setDay({...day,start:Math.min(23*60,day.start+30)})],["쓸 시간",dur(day.cap),()=>setDay({...day,cap:Math.max(30,day.cap-30)}),()=>setDay({...day,cap:Math.min(16*60,day.cap+30)})]].map(([label,val,dec,inc])=>(
+                <div key={label} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                  <span style={{fontFamily:"monospace",fontSize:12,color:C.faint,width:56}}>{label}</span>
+                  <button onClick={dec} style={{width:28,height:28,borderRadius:6,background:C.panel2,color:C.dim,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Minus size={12}/></button>
+                  <span style={{fontFamily:"monospace",fontSize:14,width:64,textAlign:"center"}}>{val}</span>
+                  <button onClick={inc} style={{width:28,height:28,borderRadius:6,background:C.panel2,color:C.dim,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Plus size={12}/></button>
+                </div>
+              ))}
+              <div style={{height:8,borderRadius:4,overflow:"hidden",background:C.panel2,marginBottom:8}}>
+                <div style={{height:"100%",width:`${Math.min(100,(planMin/day.cap)*100)}%`,background:planMin>day.cap?C.coral:C.amber,transition:"width .3s"}}/>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",fontFamily:"monospace",fontSize:12}}>
+                <span style={{color:C.dim}}>배정 {planMin}분 · 완료 {doneMin}분</span>
+                <span style={{color:leftMin<0?C.coral:C.faint}}>{leftMin<0?`${-leftMin}분 초과`:`${leftMin}분 남음`}</span>
+              </div>
+            </div>
+
+            {/* 밀림 */}
+            {late.length>0&&isToday&&(
+              <div style={{...card({padding:12,border:`1px solid ${C.coral}`}),marginBottom:16}}>
+                <div style={{fontFamily:"monospace",fontSize:12,color:C.coral,marginBottom:4}}>밀림 {late.length}</div>
+                {late.slice(0,3).map(g=>(
+                  <div key={g.id} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
+                    <button onClick={()=>toggleGoal(g.id)} style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${C.coral}`,background:"transparent",cursor:"pointer",flexShrink:0}}/>
+                    <span style={{fontSize:14,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.label}</span>
+                    <span style={{fontFamily:"monospace",fontSize:12,color:C.faint}}>{g.pj}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 오늘 끝낼 것 */}
+            {todayGoals.length>0&&(
+              <div style={{...card2({padding:12}),marginBottom:16}}>
+                <div style={{fontFamily:"monospace",fontSize:12,color:C.amber,marginBottom:4}}>오늘 끝낼 것</div>
+                {todayGoals.map(g=>(
+                  <div key={g.id} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
+                    <button onClick={()=>toggleGoal(g.id)} style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${TRACKS[g.track]}`,background:"transparent",cursor:"pointer",flexShrink:0}}/>
+                    <span style={{fontSize:14,flex:1}}>{g.label}</span>
+                    <span style={{fontFamily:"monospace",fontSize:12,color:C.faint}}>{g.pj}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {day.blocks.length===0&&(
+              <div style={{...card({padding:"24px 16px"}),marginBottom:16,textAlign:"center",fontSize:14,color:C.faint,borderStyle:"dashed"}}>
+                블록이 없어. 아래에서 넣거나 기본 시간표를 불러와.
+              </div>
+            )}
+
+            {/* 블록 목록 */}
+            {laid.map(b=>{
+              const isNow=current&&current.id===b.id;
+              const past=isToday&&nowMin>=b.e;
+              const subs=b.subs||[];
+              const sDone=subs.filter(s=>s.done).length;
+              const isOpen=open[b.id]!==undefined?open[b.id]:isNow;
+              return (
+                <div key={b.id} style={{display:"flex",gap:12,marginBottom:6}}>
+                  <div style={{width:48,flexShrink:0,paddingTop:12}}>
+                    <div style={{fontFamily:"monospace",fontSize:12,color:isNow?TRACKS[b.track]:C.faint}}>{hhmm(b.s)}</div>
+                  </div>
+                  <div style={{flex:1,minWidth:0,borderRadius:12,background:C.panel,border:`1px solid ${isNow?TRACKS[b.track]:C.line}`,borderLeft:`3px solid ${TRACKS[b.track]}`,opacity:b.done||(past&&!b.done)?0.6:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px"}}>
+                      <button onClick={()=>toggleBlock(b.id)} style={{width:20,height:20,borderRadius:4,border:`1.5px solid ${b.done?TRACKS[b.track]:C.line}`,background:b.done?TRACKS[b.track]:"transparent",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                        {b.done&&<Check size={13} strokeWidth={3}/>}
+                      </button>
+                      <button onClick={()=>setOpen({...open,[b.id]:!isOpen})} style={{flex:1,minWidth:0,display:"flex",alignItems:"center",gap:8,background:"none",border:"none",cursor:"pointer",textAlign:"left"}}>
+                        <span style={{flex:1,minWidth:0,fontSize:14,textDecoration:b.done?"line-through":"none",color:b.done?C.faint:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.label}</span>
+                        {subs.length>0&&<span style={{fontFamily:"monospace",fontSize:12,flexShrink:0,color:sDone===subs.length?C.mint:C.faint}}>{sDone}/{subs.length}</span>}
+                        <span style={{fontFamily:"monospace",fontSize:12,flexShrink:0,color:C.faint}}>{b.min}분</span>
+                        {isOpen?<ChevronDown size={13}/>:<ChevronRight size={13}/>}
+                      </button>
+                    </div>
+                    {isOpen&&(
+                      <div style={{padding:"8px 16px 12px",borderTop:`1px solid ${C.line}`}}>
+                        {subs.map(s=>(
+                          <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0"}}>
+                            <button onClick={()=>toggleSub(b.id,s.id)} style={{width:14,height:14,borderRadius:3,border:`1.5px solid ${s.done?TRACKS[b.track]:C.line}`,background:s.done?TRACKS[b.track]:"transparent",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                              {s.done&&<Check size={9} strokeWidth={3}/>}
+                            </button>
+                            <span style={{flex:1,fontSize:14,color:s.done?C.faint:C.dim,textDecoration:s.done?"line-through":"none"}}>{s.label}</span>
+                            <button onClick={()=>patchBlock(b.id,x=>({...x,subs:x.subs.filter(y=>y.id!==s.id)}))} style={{color:C.faint,background:"none",border:"none",cursor:"pointer",display:"flex"}}><Trash2 size={11}/></button>
+                          </div>
+                        ))}
+                        <input
+                          value={subDraft[b.id]||""}
+                          onChange={e=>setSubDraft({...subDraft,[b.id]:e.target.value})}
+                          onKeyDown={e=>{
+                            if(e.key!=="Enter")return;
+                            const v=(subDraft[b.id]||"").trim();
+                            if(!v)return;
+                            patchBlock(b.id,x=>({...x,subs:[...(x.subs||[]),{id:`s${Date.now()}`,label:v,done:false}],done:false}));
+                            setSubDraft({...subDraft,[b.id]:""});
+                          }}
+                          placeholder="소주제 추가 (엔터)"
+                          style={{width:"100%",marginTop:6,padding:"6px 10px",borderRadius:8,fontSize:14,background:C.panel2,color:C.text,border:`1px solid ${C.line}`}}
+                        />
+                        <button onClick={()=>delBlock(b.id)} style={{fontFamily:"monospace",fontSize:12,marginTop:10,color:C.coral,background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
+                          <Trash2 size={11}/> 이 블록 삭제
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {edit&&(
+                    <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0,paddingTop:4}}>
+                      {[["15분 늘리기",()=>patchBlock(b.id,x=>({...x,min:x.min+15})),C.dim,<Plus size={11}/>],["15분 줄이기",()=>patchBlock(b.id,x=>({...x,min:Math.max(5,x.min-15)})),C.dim,<Minus size={11}/>],["블록 삭제",()=>delBlock(b.id),C.coral,<Trash2 size={11}/>]].map(([lbl,fn,col,ic])=>(
+                        <button key={lbl} onClick={fn} aria-label={lbl} style={{width:24,height:24,borderRadius:6,background:C.panel2,color:col,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{ic}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {day.blocks.length>0&&(
+              <div style={{display:"flex",gap:12,marginTop:6}}>
+                <div style={{width:48,flexShrink:0}}><div style={{fontFamily:"monospace",fontSize:12,color:C.faint}}>{hhmm(endMin)}</div></div>
+                <div style={{fontSize:12,fontFamily:"monospace",color:C.faint}}>끝</div>
+              </div>
+            )}
+
+            {/* 블록 추가 */}
+            <div style={{...card({padding:12}),marginTop:20}}>
+              <div style={{display:"flex",gap:8,marginBottom:8}}>
+                <input value={draft.label} onChange={e=>setDraft({...draft,label:e.target.value})} onKeyDown={e=>e.key==="Enter"&&addBlock()} placeholder="블록 이름" style={{flex:1,minWidth:0,padding:"8px 12px",borderRadius:8,fontSize:14,background:C.panel2,color:C.text,border:`1px solid ${C.line}`}}/>
+                <input value={draft.min} onChange={e=>setDraft({...draft,min:e.target.value})} style={{width:56,padding:"8px",borderRadius:8,fontSize:14,fontFamily:"monospace",textAlign:"center",background:C.panel2,color:C.text,border:`1px solid ${C.line}`}} aria-label="분"/>
+                <button onClick={addBlock} style={{padding:"0 12px",borderRadius:8,background:C.amber,color:C.bg,border:"none",cursor:"pointer",display:"flex",alignItems:"center"}}><Plus size={16} strokeWidth={2.5}/></button>
+              </div>
+              <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+                {TRACK_ORDER.map(k=>(
+                  <button key={k} onClick={()=>setDraft({...draft,track:k})} style={{padding:"4px 10px",borderRadius:6,fontFamily:"monospace",fontSize:12,background:draft.track===k?TRACKS[k]:C.panel2,color:draft.track===k?C.bg:C.faint,border:"none",cursor:"pointer"}}>{TRACK_LABEL[k]}</button>
+                ))}
+                <button onClick={()=>setEdit(!edit)} style={{marginLeft:"auto",padding:"4px 10px",borderRadius:6,fontFamily:"monospace",fontSize:12,background:edit?C.violet:C.panel2,color:edit?C.bg:C.faint,border:"none",cursor:"pointer"}}>{edit?"조정 끝":"조정"}</button>
+              </div>
+            </div>
+
+            <div style={{display:"flex",gap:16,marginTop:12,flexWrap:"wrap",alignItems:"center"}}>
+              <button onClick={()=>setDaySafe(makeDay(date))} style={{fontFamily:"monospace",fontSize:12,color:C.dim,background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:4}}><RotateCcw size={11}/> 기본 시간표</button>
+              {hasYesterday&&<button onClick={copyYesterday} style={{fontFamily:"monospace",fontSize:12,color:C.dim,background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:4}}><Copy size={11}/> 어제 것 불러오기</button>}
+              {day.blocks.length>0&&<button onClick={()=>setDaySafe({...day,blocks:[]})} style={{fontFamily:"monospace",fontSize:12,color:C.faint,background:"none",border:"none",cursor:"pointer",marginLeft:"auto"}}>전부 지우기</button>}
+            </div>
+
+            {undo&&(
+              <button onClick={()=>{setDay(undo);setUndo(null);}} style={{width:"100%",marginTop:12,padding:"10px 0",borderRadius:8,fontFamily:"monospace",fontSize:12,background:C.panel2,color:C.mint,border:`1px solid ${C.mint}`,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                <RotateCcw size={12}/> 방금 지운 것 되돌리기
+              </button>
+            )}
+          </div>
+        )}
+
+        {view==="week"&&(
+          <div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <BtnIcon onClick={()=>setDate(shiftKey(date,-7))} label="지난 주"><ChevronLeft size={18}/></BtnIcon>
+              <span style={{fontFamily:"monospace",fontSize:14}}>{fmtMD(wStart)} — {fmtMD(weekDays[6])}</span>
+              <BtnIcon onClick={()=>setDate(shiftKey(date,7))} label="다음 주"><ChevronRight size={18}/></BtnIcon>
+            </div>
+
+            {weekDays.map(k=>{
+              const gs=goals.filter(g=>g.due===k);
+              const isT=k===today;
+              return (
+                <div key={k} style={{marginBottom:12}}>
+                  <button onClick={()=>{setDate(k);setView("day");}} style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:4,background:"none",border:"none",cursor:"pointer"}}>
+                    <span style={{fontFamily:"monospace",fontSize:14,color:isT?C.amber:k<today?C.faint:C.text}}>{fmtMD(k)}</span>
+                    <span style={{fontFamily:"monospace",fontSize:12,color:isT?C.amber:C.faint}}>{DAYS[fromKey(k).getDay()]}</span>
+                  </button>
+                  <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${C.line}`}}>
+                    {gs.map((g,i)=>(
+                      <div key={g.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:C.panel,borderTop:i===0?"none":`1px solid ${C.line}`}}>
+                        <button onClick={()=>toggleGoal(g.id)} style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${g.done?TRACKS[g.track]:!g.done&&g.due<today?C.coral:C.line}`,background:g.done?TRACKS[g.track]:"transparent",cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                          {g.done&&<Check size={11} strokeWidth={3}/>}
+                        </button>
+                        <span style={{flex:1,minWidth:0,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:g.done?C.faint:C.text,textDecoration:g.done?"line-through":"none"}}>{g.label}</span>
+                        <span style={{fontFamily:"monospace",fontSize:12,flexShrink:0,color:C.faint}}>{g.pj}</span>
+                        {!g.done&&<button onClick={()=>pushGoal(g.id)} style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",color:C.faint,display:"flex"}} aria-label="하루 미루기"><ArrowRight size={13}/></button>}
+                        <button onClick={()=>delGoal(g.id)} style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",color:C.faint,display:"flex"}} aria-label="마감 삭제"><Trash2 size={11}/></button>
+                      </div>
+                    ))}
+                    <input
+                      value={goalDraft[k]||""}
+                      onChange={e=>setGoalDraft({...goalDraft,[k]:e.target.value})}
+                      onKeyDown={e=>{
+                        if(e.key!=="Enter")return;
+                        const v=(goalDraft[k]||"").trim();
+                        if(!v)return;
+                        save({...state,goals:[...goals,{id:`g${Date.now()}`,label:v,pj:"",track:"oju",due:k,done:false}]});
+                        setGoalDraft({...goalDraft,[k]:""});
+                      }}
+                      placeholder="마감 추가"
+                      style={{width:"100%",padding:"8px 12px",fontSize:14,background:C.panel,color:C.text,border:"none",borderTop:gs.length?`1px solid ${C.line}`:"none",outline:"none"}}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+
+            <div style={{...card({padding:16}),marginTop:16}}>
+              <div style={{fontSize:14,lineHeight:1.6,color:C.dim}}>못 지킨 블록은 다음 날로 옮기지 말고 버려. 밀린 걸 계속 얹으면 시간표가 무너지고, 무너진 시간표는 안 보게 된다. 마감만 화살표로 하루씩 미뤄.</div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+</script>
+</body>
+</html>
