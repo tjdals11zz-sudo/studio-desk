@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>우모행 작업실</title>
+<title>ToDo</title>
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;ToDo&quot;,&quot;short_name&quot;:&quot;ToDo&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%2314161C&quot;,&quot;theme_color&quot;:&quot;%2314161C&quot;}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ToDo">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%2314161C'/><text x='256' y='280' font-size='200' text-anchor='middle' dominant-baseline='middle'>⚡</text><text x='256' y='420' font-size='90' font-weight='800' text-anchor='middle' fill='white' font-family='Arial'>ToDo</text></svg>">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -28,7 +33,6 @@ const SUPABASE_URL = "https://yuhjgdkdrtnsahacqgzl.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1aGpnZGtkcnRuc2FoYWNxZ3psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4NjU3MDksImV4cCI6MjEwMzQ0MTcwOX0.rWTE4ZALDVcDA3aCn29iyxKtvxPlDC9ie3Hm2u3XzgM";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const USER_ID = "womohaeng";
-const KEY = "timebox-v4";
 const SWITCH_DATE = "2026-10-01";
 
 const C = {
@@ -84,7 +88,6 @@ const weekStart=k=>shiftKey(k,-((fromKey(k).getDay()+6)%7));
 const tplFor=k=>{const phase=k>=SWITCH_DATE?"full":"prep";const g=fromKey(k).getDay();return TEMPLATES[phase][g===0||g===6?"weekend":"weekday"];};
 const makeDay=k=>{const t=tplFor(k);return{start:t.start,cap:t.blocks.filter(([,,tr])=>tr!=="off").reduce((s,[m])=>s+m,0),blocks:t.blocks.map(([min,label,track],i)=>({id:`b${i}`,min,label,track,done:false,subs:[]}))};};
 
-// Supabase 저장/불러오기
 async function loadFromDB() {
   try {
     const {data,error} = await sb.from("TimeBox").select("data").eq("user_id", USER_ID).single();
@@ -104,7 +107,6 @@ async function saveToDB(state) {
   } catch(e) { console.error("save error", e); }
 }
 
-// 아이콘
 const Icon=({d,size=16,strokeWidth=2})=>(
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
     {Array.isArray(d)?d.map((p,i)=><path key={i} d={p}/>):<path d={d}/>}
@@ -117,7 +119,6 @@ const Trash2=({size})=><Icon size={size} d={["M3 6h18","M19 6l-1 14H6L5 6","M8 6
 const ChevronLeft=({size})=><Icon size={size} d="M15 18l-6-6 6-6"/>;
 const ChevronRight=({size})=><Icon size={size} d="M9 18l6-6-6-6"/>;
 const ChevronDown=({size})=><Icon size={size} d="M6 9l6 6 6-6"/>;
-const ChevRight=({size})=><Icon size={size} d="M9 18l6-6-6-6"/>;
 const Clock=({size})=><Icon size={size} d={["M12 2a10 10 0 110 20A10 10 0 0112 2","M12 6v6l4 2"]}/>;
 const ArrowRight=({size})=><Icon size={size} d={["M5 12h14","M12 5l7 7-7 7"]}/>;
 const Copy=({size})=><Icon size={size} d={["M8 4H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2","M8 4a2 2 0 012-2h4a2 2 0 012 2v0a2 2 0 01-2 2h-4a2 2 0 01-2-2v0z"]}/>;
@@ -216,7 +217,12 @@ function App() {
   const yDay = state && state.days[shiftKey(date, -1)];
   const hasYesterday = yDay && yDay.blocks.length > 0;
 
-  if (status === "loading") return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"monospace",fontSize:14,color:C.faint,background:C.bg}}>불러오는 중…</div>;
+  if (status === "loading") return (
+    <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:C.bg,gap:16}}>
+      <div style={{fontSize:48}}>⚡</div>
+      <div style={{fontFamily:"monospace",fontSize:14,color:C.faint}}>불러오는 중…</div>
+    </div>
+  );
 
   const card = (extra={}) => ({background:C.panel,border:`1px solid ${C.line}`,borderRadius:12,...extra});
   const card2 = (extra={}) => ({background:C.panel2,border:`1px solid ${C.line}`,borderRadius:12,...extra});
@@ -224,15 +230,19 @@ function App() {
   return (
     <div style={{minHeight:"100vh",background:C.bg,color:C.text}}>
       <div style={{maxWidth:560,margin:"0 auto",padding:"24px 16px"}}>
-        {/* 저장 상태 */}
-        {saving && <div style={{fontFamily:"monospace",fontSize:11,color:C.faint,textAlign:"right",marginBottom:4}}>저장 중…</div>}
+        {/* 헤더 */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:22}}>⚡</span>
+            <span style={{fontSize:18,fontWeight:700,letterSpacing:-0.5}}>ToDo</span>
+          </div>
+          {saving && <span style={{fontFamily:"monospace",fontSize:11,color:C.faint}}>저장 중…</span>}
+          {dday>0 && <span style={{fontFamily:"monospace",fontSize:12,color:C.faint}}>전업까지 D-{dday}</span>}
+        </div>
 
         {/* 지금 */}
         <div style={{...card({padding:20}),marginBottom:16,border:`1px solid ${current?TRACKS[current.track]:C.line}`}}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-            <span style={{fontFamily:"monospace",fontSize:12,color:C.faint,display:"flex",alignItems:"center",gap:6}}><Clock size={11}/> {hhmm(nowMin)}</span>
-            {dday>0&&<span style={{fontFamily:"monospace",fontSize:12,color:C.faint}}>전업까지 D-{dday}</span>}
-          </div>
+          <div style={{fontFamily:"monospace",fontSize:12,color:C.faint,marginBottom:8,display:"flex",alignItems:"center",gap:6}}><Clock size={11}/> {hhmm(nowMin)}</div>
           {current?(
             <div>
               <div style={{fontSize:22,fontWeight:600,lineHeight:1.3}}>{current.label}</div>
@@ -260,7 +270,7 @@ function App() {
         {/* 탭 */}
         <div style={{display:"flex",gap:4,padding:4,background:C.panel,borderRadius:10,marginBottom:16}}>
           {[["day","시간표"],["week","이번 주"]].map(([k,l])=>(
-            <button key={k} onClick={()=>setView(k)} style={{flex:1,padding:"8px 0",borderRadius:8,fontSize:14,fontWeight:500,background:view===k?C.panel2:"transparent",color:view===k?C.text:C.faint,border:"none",cursor:"pointer"}}>{l}</button>
+            <button key={k} onClick={()=>setView(k)} style={{flex:1,padding:"8px 0",borderRadius:8,fontSize:14,fontWeight:500,background:view===k?C.panel2:"transparent",color:view===k?C.text:C.faint}}>{l}</button>
           ))}
         </div>
 
@@ -272,7 +282,6 @@ function App() {
               <button onClick={()=>setDate(shiftKey(date,1))} style={{color:C.faint,padding:6}}><ChevronRight size={18}/></button>
             </div>
 
-            {/* 설정 */}
             <div style={{...card({padding:16}),marginBottom:16}}>
               {[["시작",hhmm(day.start),()=>setDay({...day,start:Math.max(0,day.start-30)}),()=>setDay({...day,start:Math.min(23*60,day.start+30)})],["쓸 시간",dur(day.cap),()=>setDay({...day,cap:Math.max(30,day.cap-30)}),()=>setDay({...day,cap:Math.min(16*60,day.cap+30)})]].map(([label,val,dec,inc])=>(
                 <div key={label} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
